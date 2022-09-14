@@ -4,7 +4,6 @@ package main
 #cgo LDFLAGS: -L./lib -lrosu_pp_ffi
 #include "./lib/rosu_pp_ffi.h"
 #include <stdlib.h>
-#include <stdio.h>
 */
 import "C"
 
@@ -14,18 +13,18 @@ import (
 )
 
 type ScoreParams struct {
-	mode 			uint
+    mode 			uint
     mods 			uint
-	acc 			float64
+    acc 			float64
     n300 			uint
     n100 			uint
     n50 			uint
-    nMisses 		uint
-	nKatu 			uint
+    nMisses 			uint
+    nKatu 			uint
     combo 			uint
     score 			uint
-    passedObjects 	uint
-    clockRate 		float64
+    passedObjects 		uint
+    clockRate 			float64
 }
 
 type RosuCalculator struct {
@@ -47,7 +46,7 @@ func (rosu RosuCalculator) Calculate() C.calculateresult {
 	if (rosu.scoreParams.mods > 0) {
 		C.score_params_mods(scoreParams, C.uint(rosu.scoreParams.mods))
 	}
-	if (rosu.scoreParams.acc < 1) {
+	if (rosu.scoreParams.acc > 0) {
 		C.score_params_acc(scoreParams, C.double(rosu.scoreParams.acc))
 	}
 	if (rosu.scoreParams.n300 > 0) {
