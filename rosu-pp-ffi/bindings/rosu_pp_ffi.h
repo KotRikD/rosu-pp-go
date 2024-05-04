@@ -15,9 +15,13 @@ extern "C" {
 
 typedef enum mode
     {
+    /// osu!standard
     MODE_OSU = 0,
+    /// osu!taiko
     MODE_TAIKO = 1,
+    /// osu!catch
     MODE_CATCH = 2,
+    /// osu!mania
     MODE_MANIA = 3,
     } mode;
 
@@ -36,14 +40,18 @@ typedef enum ffierror
 ///Option type containing boolean flag and maybe valid data.
 typedef struct optionf64
     {
+    ///Element that is maybe valid.
     double t;
+    ///Byte where `1` means element `t` is valid.
     uint8_t is_some;
     } optionf64;
 
 ///Option type containing boolean flag and maybe valid data.
 typedef struct optionu32
     {
+    ///Element that is maybe valid.
     uint32_t t;
+    ///Byte where `1` means element `t` is valid.
     uint8_t is_some;
     } optionu32;
 
@@ -64,6 +72,8 @@ typedef struct calculateresult
     optionf64 speedStrain;
     optionf64 flashlightRating;
     optionf64 sliderFactor;
+    optionf64 ppDifficulty;
+    optionf64 effectiveMissCount;
     double ar;
     double cs;
     double hp;
@@ -72,7 +82,7 @@ typedef struct calculateresult
     double clockRate;
     optionf64 timePreempt;
     optionf64 greatHitWindow;
-    optionu32 nCircles;
+    optionu32 nObjects;
     optionu32 nSliders;
     optionu32 nSpinners;
     optionu32 maxCombo;
@@ -88,6 +98,8 @@ typedef struct calculateresult
 ffierror calculator_destroy(calculator** context);
 
 ffierror calculator_new(calculator** context, const char* beatmap_path);
+
+ffierror calculator_from_data(calculator** context, const char* beatmap_data);
 
 calculateresult calculator_calculate(calculator* context, const scoreparams* score_params);
 
