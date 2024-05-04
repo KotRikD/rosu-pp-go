@@ -398,6 +398,14 @@ impl Calculator {
         })
     }
 
+    #[ffi_service_ctor(on_panic = "ffi_error")]
+    pub fn new_from_data(beatmap_data: AsciiPointer) -> Result<Self, Error> {
+        let str = beatmap_data.as_c_str().unwrap().to_str().unwrap();
+        Ok(Self {
+            inner: Beatmap::from_bytes(str.as_bytes()).unwrap(),
+        })
+    }
+
     #[ffi_service_method(on_panic = "undefined_behavior")]
     pub fn calculate(&mut self, score_params: &ScoreParams) -> CalculateResult {
         let mods = score_params.mods;

@@ -99,6 +99,8 @@ ffierror calculator_destroy(calculator** context);
 
 ffierror calculator_new(calculator** context, const char* beatmap_path);
 
+ffierror calculator_new_from_data(calculator** context, const char* beatmap_data);
+
 calculateresult calculator_calculate(calculator* context, const scoreparams* score_params);
 
 /// Destroys the given instance.

@@ -38,6 +38,7 @@ func (rosu RosuCalculator) Calculate() C.calculateresult {
 
 	var calculator *C.calculator
 	C.calculator_new(&calculator, cMapPath)
+	// C.calculator_new_from_data(&calculator, cMapDataInString)
 	defer C.calculator_destroy(&calculator)
 
 	var scoreParams *C.scoreparams
