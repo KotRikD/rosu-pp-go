@@ -4,9 +4,9 @@ use interoptopus::{
     Inventory, InventoryBuilder,
 };
 use rosu_pp::{
-    beatmap::BeatmapAttributes, catch::CatchPerformanceAttributes,
-    mania::ManiaPerformanceAttributes, osu::OsuPerformanceAttributes,
-    taiko::TaikoPerformanceAttributes, AnyPP, Beatmap, GameMode, PerformanceAttributes,
+    any::Performance as AnyPP, any::PerformanceAttributes, catch::CatchPerformanceAttributes,
+    mania::ManiaPerformanceAttributes, model::beatmap::BeatmapAttributes, model::mode::GameMode,
+    osu::OsuPerformanceAttributes, taiko::TaikoPerformanceAttributes, Beatmap,
 };
 
 mod result;
@@ -141,7 +141,7 @@ impl ScoreParams {
             nKatu,
             acc,
             combo,
-            score,
+            score: _,
             passedObjects,
             clockRate,
         } = self;
@@ -154,35 +154,35 @@ impl ScoreParams {
                 Mode::Mania => GameMode::Mania,
             };
 
-            calculator = calculator.mode(mode);
+            calculator = calculator.mode_or_ignore(mode);
         }
 
         if let Some(n300) = n300.into_option() {
-            calculator = calculator.n300(n300 as usize);
+            calculator = calculator.n300(n300);
         }
 
         if let Some(n100) = n100.into_option() {
-            calculator = calculator.n100(n100 as usize);
+            calculator = calculator.n100(n100);
         }
 
         if let Some(n50) = n50.into_option() {
-            calculator = calculator.n50(n50 as usize);
+            calculator = calculator.n50(n50);
         }
 
         if let Some(n_misses) = nMisses.into_option() {
-            calculator = calculator.misses(n_misses as usize);
+            calculator = calculator.misses(n_misses);
         }
 
         if let Some(n_katu) = nKatu.into_option() {
-            calculator = calculator.n_katu(n_katu as usize);
+            calculator = calculator.n_katu(n_katu);
         }
 
         if let Some(combo) = combo.into_option() {
-            calculator = calculator.combo(combo as usize);
+            calculator = calculator.combo(combo);
         }
 
         if let Some(passed_objects) = passedObjects.into_option() {
-            calculator = calculator.passed_objects(passed_objects as usize);
+            calculator = calculator.passed_objects(passed_objects);
         }
 
         if let Some(clock_rate) = clockRate.into_option() {
@@ -193,10 +193,6 @@ impl ScoreParams {
 
         if let Some(acc) = acc.into_option() {
             calculator = calculator.accuracy(acc);
-        }
-
-        if let Some(score) = score.into_option() {
-            calculator = calculator.score(score);
         }
 
         calculator
@@ -223,6 +219,8 @@ pub struct CalculateResult {
     pub speedStrain: FFIOption<f64>,
     pub flashlightRating: FFIOption<f64>,
     pub sliderFactor: FFIOption<f64>,
+    pub ppDifficulty: FFIOption<f64>,
+    pub effectiveMissCount: FFIOption<f64>,
 
     pub ar: f64,
     pub cs: f64,
@@ -232,7 +230,7 @@ pub struct CalculateResult {
     pub clockRate: f64,
     pub timePreempt: FFIOption<f64>,
     pub greatHitWindow: FFIOption<f64>,
-    pub nCircles: FFIOption<u32>,
+    pub nObjects: FFIOption<u32>,
     pub nSliders: FFIOption<u32>,
     pub nSpinners: FFIOption<u32>,
     pub maxCombo: FFIOption<u32>,
@@ -245,10 +243,10 @@ impl CalculateResult {
         mods: u32,
         clock_rate: Option<f64>,
     ) -> Self {
-        let mut attr_builder = map.attributes();
+        let attr_builder = map.attributes();
 
         if let Some(clock_rate) = clock_rate {
-            attr_builder.clock_rate(clock_rate);
+            let _ = attr_builder.clone().clock_rate(clock_rate);
         }
 
         let mode = match &attrs {
@@ -258,7 +256,9 @@ impl CalculateResult {
             PerformanceAttributes::Taiko(_) => GameMode::Taiko,
         };
 
-        attr_builder.converted(map.mode == GameMode::Osu && mode != GameMode::Osu);
+        let is_convert = map.mode == GameMode::Osu && mode != GameMode::Osu;
+
+        let cloned_builder = attr_builder.clone();
 
         let BeatmapAttributes {
             ar,
@@ -267,7 +267,7 @@ impl CalculateResult {
             od,
             clock_rate,
             hit_windows,
-        } = attr_builder.mods(mods).mode(mode).build();
+        } = cloned_builder.mods(mods).mode(mode, is_convert).build();
 
         let bpm = map.bpm() * clock_rate;
 
@@ -280,7 +280,7 @@ impl CalculateResult {
                 nFruits: Some(difficulty.n_fruits as u32).into(),
                 nDroplets: Some(difficulty.n_droplets as u32).into(),
                 nTinyDroplets: Some(difficulty.n_tiny_droplets as u32).into(),
-                nSpinners: Some(map.n_spinners).into(),
+                // nSpinners: Some().into(),
                 ar,
                 cs,
                 hp,
@@ -290,18 +290,19 @@ impl CalculateResult {
                 ..Default::default()
             },
             PerformanceAttributes::Mania(ManiaPerformanceAttributes {
-                pp,
-                pp_acc,
-                pp_strain,
                 difficulty,
+                pp_difficulty,
+                pp,
             }) => Self {
                 mode: 3,
                 pp,
-                ppAcc: Some(pp_acc).into(),
-                ppStrain: Some(pp_strain).into(),
+                ppDifficulty: Some(pp_difficulty).into(),
+                // ppAcc: Some(pp_acc).into(),
+                // ppStrain: Some(pp_strain).into(),
                 stars: difficulty.stars,
-                nCircles: Some(map.n_circles).into(),
-                nSliders: Some(map.n_sliders).into(),
+                // nCircles: Some(map.n_circles).into(),
+                // nSliders: Some(map.n_sliders).into(),
+                nObjects: Some(difficulty.n_objects).into(),
                 ar,
                 cs,
                 hp,
@@ -312,26 +313,31 @@ impl CalculateResult {
                 ..Default::default()
             },
             PerformanceAttributes::Osu(OsuPerformanceAttributes {
+                difficulty,
+                effective_miss_count,
                 pp,
                 pp_acc,
                 pp_aim,
                 pp_flashlight,
                 pp_speed,
-                difficulty,
             }) => Self {
                 mode: 0,
                 pp,
                 ppAcc: Some(pp_acc).into(),
                 ppAim: Some(pp_aim).into(),
                 ppFlashlight: Some(pp_flashlight).into(),
+                effectiveMissCount: Some(effective_miss_count).into(),
                 ppSpeed: Some(pp_speed).into(),
                 stars: difficulty.stars,
                 maxCombo: Some(difficulty.max_combo as u32).into(),
-                aimStrain: Some(difficulty.aim_strain).into(),
-                speedStrain: Some(difficulty.speed_strain).into(),
-                flashlightRating: Some(difficulty.flashlight_rating).into(),
+                aimStrain: Some(pp_aim).into(),
+                speedStrain: Some(pp_speed).into(),
+                flashlightRating: Some(pp_flashlight).into(),
+                // aimStrain: Some(difficulty.aim_strain).into(),
+                // speedStrain: Some(difficulty.speed_strain).into(),
+                // flashlightRating: Some(difficulty.flashlight_rating).into(),
                 sliderFactor: Some(difficulty.slider_factor).into(),
-                nCircles: Some(difficulty.n_circles as u32).into(),
+                nObjects: Some(difficulty.n_circles as u32).into(),
                 nSliders: Some(difficulty.n_sliders as u32).into(),
                 nSpinners: Some(difficulty.n_spinners as u32).into(),
                 ar,
@@ -345,20 +351,23 @@ impl CalculateResult {
                 ..Default::default()
             },
             PerformanceAttributes::Taiko(TaikoPerformanceAttributes {
+                difficulty,
+                effective_miss_count,
                 pp,
                 pp_acc,
-                pp_strain,
-                difficulty,
+                pp_difficulty,
             }) => Self {
                 mode: 1,
                 pp,
                 ppAcc: Some(pp_acc).into(),
-                ppStrain: Some(pp_strain).into(),
+                ppDifficulty: Some(pp_difficulty).into(),
+                effectiveMissCount: Some(effective_miss_count).into(),
+                // ppStrain: Some(pp_strain).into(),
                 stars: difficulty.stars,
                 maxCombo: Some(difficulty.max_combo as u32).into(),
-                nCircles: Some(map.n_circles).into(),
-                nSliders: Some(map.n_sliders).into(),
-                nSpinners: Some(map.n_spinners).into(),
+                nObjects: Some(map.hit_objects.len() as u32).into(),
+                // nSliders: Some(map.n_sliders).into(),
+                // nSpinners: Some(map.n_spinners).into(),
                 ar,
                 cs,
                 hp,
@@ -485,7 +494,7 @@ impl std::fmt::Display for CalculateResult {
             s.field("greatHitWindow", great_hit_window);
         }
 
-        if let Some(ref n_circles) = self.nCircles.into_option() {
+        if let Some(ref n_circles) = self.nObjects.into_option() {
             s.field("nCircles", n_circles);
         }
 
