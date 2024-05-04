@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"unsafe"
 )
 
@@ -22,23 +23,25 @@ type ScoreParams struct {
 	nMisses       uint
 	nKatu         uint
 	combo         uint
-	score         uint
 	passedObjects uint
 	clockRate     float64
 }
 
 type RosuCalculator struct {
 	mapPath     string
+	mapData     string
 	scoreParams ScoreParams
 }
 
 func (rosu RosuCalculator) Calculate() C.calculateresult {
-	cMapPath := C.CString(rosu.mapPath)
-	defer C.free(unsafe.Pointer(cMapPath))
+	// cMapPath := C.CString(rosu.mapPath)
+	// defer C.free(unsafe.Pointer(cMapPath))
+	cMapData := C.CString(rosu.mapData)
+	defer C.free(unsafe.Pointer(cMapData))
 
 	var calculator *C.calculator
-	C.calculator_new(&calculator, cMapPath)
-	// C.calculator_new_from_data(&calculator, cMapDataInString)
+	// C.calculator_new(&calculator, cMapPath)
+	C.calculator_from_data(&calculator, cMapData)
 	defer C.calculator_destroy(&calculator)
 
 	var scoreParams *C.scoreparams
@@ -81,8 +84,15 @@ func (rosu RosuCalculator) Calculate() C.calculateresult {
 }
 
 func main() {
+	data, err := os.ReadFile("./test.osu")
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	calculator := RosuCalculator{
-		mapPath: "./test.osu",
+		// mapPath: "./test.osu",
+		mapData: string(data),
 		scoreParams: ScoreParams{
 			mode:    0,
 			n300:    372,
